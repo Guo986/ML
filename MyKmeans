@@ -1,0 +1,123 @@
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
+plt.rcParams['font.sans-serif'] = ['SimHei']
+
+
+def dist(a, b, ax=1):
+    return np.linalg.norm(a - b, axis=ax) # 矩阵或者向量范数
+
+class MyKmeans():
+    def __init__(self, k=3, init_center='random', max_iter=4):
+        self.n_clusters = k
+        self.init_center = init_center
+        self.data = []
+        self.everyClusters = []         # 记录每一次迭代后的分类结果
+        self.everyCenters = []          # 记录每一次迭代后的中心
+        self.max_iter = max_iter        # 迭代次数
+        self.cluster_centers_ = []      # 类中心   k*维度
+        self.labels = []                # 聚类结果 n*1
+
+    def NumOfClusters(self): # 统计每个类的数据量 返回列表
+        return [np.sum(self.labels ==i) for i in range(self.n_clusters)]
+
+    # 画出迭代结束的效果图；如果特征量数量大于3还可以画3D图
+    def plot(self, dimension='2D'):
+        if dimension=='2D':
+            plt.scatter(self.data[:,0], self.data[:,1], c=self.labels, cmap=plt.cm.Set2, edgecolor="k")
+            for i in range(self.n_clusters):
+                plt.plot(self.cluster_centers_[i][0], self.cluster_centers_[i][1], 'rD')
+
+            x_min, x_max = np.min(self.data[:, 0])-0.2, np.max(self.data[:, 0]) + 0.2
+            y_min, y_max = np.min(self.data[:, 1])-0.2, np.max(self.data[:, 1]) + 0.2
+            plt.xlim(x_min, x_max)
+            plt.ylim(y_min, y_max)
+            plt.show()
+        elif dimension=='3D':
+
+            # plot the first three PCA dimensions
+            fig = plt.figure(1, figsize=(9, 9))
+            ax = fig.add_subplot(111, projection="3d", elev=-150, azim=110)
+            data3D = self.data
+            if self.data.shape[1] >= 5:  # 表示属性列超过3列,需要降维
+                data3D = PCA(n_components=3).fit_transform(self.data[:,:-1])
+            ax.scatter(
+                data3D[:, 0],
+                data3D[:, 1],
+                data3D[:, 2],
+                c=self.labels,
+                cmap=plt.cm.Set1,
+                edgecolor="k",
+                s=40,
+            )
+            ax.set_title("First three PCA directions")
+            ax.set_xlabel("1st eigenvector")
+            ax.w_xaxis.set_ticklabels([])
+            ax.set_ylabel("2nd eigenvector")
+            ax.w_yaxis.set_ticklabels([])
+            ax.set_zlabel("3rd eigenvector")
+            ax.w_zaxis.set_ticklabels([])
+            plt.show()
+            # plt.savefig('test.jpg', bbox_inches = 'tight')
+        else:
+            pass
+
+    # 画出每一次迭代后的效果图,2D
+    def plotStep(self):
+        for j in range(self.max_iter):
+            plt.subplot(2, int(np.ceil(self.n_clusters/2)), j+1)
+
+            plt.scatter(self.data[:, 0], self.data[:, 1], c=self.everyClusters[j], cmap=plt.cm.Set3, edgecolor="k")
+            for i in range(self.n_clusters):
+                plt.plot(self.everyCenters[j][i][0], self.everyCenters[j][i][1], 'rD')
+
+            x_min, x_max = np.min(self.data[:, 0]) - 0.2, np.max(self.data[:, 0]) + 0.2
+            y_min, y_max = np.min(self.data[:, 1]) - 0.2, np.max(self.data[:, 1]) + 0.2
+            plt.xlim(x_min, x_max)
+            plt.ylim(y_min, y_max)
+            plt.title('第'+str(j+1)+'轮迭代后')
+        plt.show()
+
+    # 拟合数据进行迭代
+    def fit(self, D):
+        D = np.array(D)
+        self.labels = np.zeros(len(D))
+        self.data = D
+        self.everyClusters = np.zeros((self.max_iter,len(D)))
+        self.everyCenters = np.zeros((self.max_iter,self.n_clusters,self.data.shape[1]))
+
+        # 初始化中心
+        if self.init_center=='random':
+            batch = np.random.choice(len(D), self.n_clusters)
+        else:
+            batch = self.init_center
+        self.cluster_centers_ = np.array(D[batch])
+
+        # 开始迭代
+        current_iter = 1
+        while(current_iter <= self.max_iter):
+            for i in range(len(D)):
+                # 度量当前点和核心点的距离 1*k
+                distances = dist(D[i], self.cluster_centers_)
+                # 为当前点归类
+                self.labels[i] = np.argmin(distances)
+
+            # 更新中心
+            for i in range(self.n_clusters):
+                points = [D[j] for j in range(len(D)) if self.labels[j] == i]
+                self.cluster_centers_[i] = np.mean(points, axis=0)  # 更新中心
+
+            self.everyClusters[current_iter-1] = self.labels
+            self.everyCenters[current_iter-1] = self.cluster_centers_
+            current_iter += 1
+
+# 导入数据集
+# data = pd.read_excel('E:\Python\Workspace_nlp\daytest\ML\Iris.xlsx',header=0) # 鸢尾花
+# mk = MyKmeans(k=3,init_center=[107,115,16])
+
+data=pd.read_excel('E:\Python\Workspace_nlp\daytest\ML\西瓜数据集4.0.xlsx',usecols="B,C")
+
+mk = MyKmeans(k=3,init_center=[5,11,23])
+mk.fit(data)
+mk.plot()
